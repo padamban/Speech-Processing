@@ -77,7 +77,7 @@ class Coder:
             blsp = ''
             for ls in lsp[i]:
                 blsp = blsp + ls                
-            oneBin = gain[i] + pitch[i] + blsp     
+            oneBin = gain[i] + pitch[i]+ blsp
             allBins.append(oneBin)        
         return allBins
      
@@ -119,6 +119,7 @@ class Coder:
                     self.p.prnt(2, '    lsp ' + str(i) + ' -> ' + str(round(LSP[step][i],4)) + "\t" + bLSP[step][i]  , 1)
                 self.p.prnt(2, ' '  , 1)
                 self.p.prnt(2, '    lsp   -> ' + coded[step] , 1)
+
                 self.p.prnt(2, ' '  , 1)
 
 

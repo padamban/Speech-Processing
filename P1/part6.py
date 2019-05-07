@@ -126,7 +126,7 @@ class Analysis:
         self.am.playSyntesizedAudio(self.cSn.d)
 
         
-Analysis().compareVisu()
+#Analysis().compareVisu()
 #Analysis().compareAudio()
 
 

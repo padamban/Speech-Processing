@@ -21,7 +21,7 @@ class Params:
     
     def __init__(self):
         self.threshold = 0.4
-        self.step = 128
+        self.step = 160
         self.pi = 20
         self.pfN = 146       # Fundamental frequency of human speach.
         self.pf = self.pfN*2
@@ -38,7 +38,7 @@ class PrintConfig:
         self.stepInto3 = []
         self.stepInto4 = []
         self.stepInto5 = []
-        self.stepInto6 = [45]
+        self.stepInto6 = []
         self.stop1 = 0
         self.stop2 = 0
         self.stop3 = 0

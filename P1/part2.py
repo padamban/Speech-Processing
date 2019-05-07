@@ -115,8 +115,10 @@ class LpcProcessing:
         self.data.pitch = np.mat(self.data.pitch).T
         self.data.gain = np.mat(self.data.gain).T
         
+
+        
         if save:
             self.pickle.SaveData(self.data)
         
 
-#LpcProcessing().run()
+LpcProcessing().run()

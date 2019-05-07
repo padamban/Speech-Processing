@@ -10,7 +10,6 @@ from part6 import Analysis
 
 PreProcessing().run()
 LpcProcessing().run()
-Synthesizer().run()
 Coder().run()
 Decoder().run()
 an = Analysis()

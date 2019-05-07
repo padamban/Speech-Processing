@@ -82,7 +82,7 @@ class Synthesizer:
             SniPrev = Sni
             Sn = np.append(Sn,np.array(Sni))         
 
-      
+
         return Sn
         
      
@@ -123,7 +123,7 @@ class Synthesizer:
             if (step in self.pc.stepInto3 or step in self.pc.stepIntoAll):
                 self.p.prnt(2, str(step)+"------------------ start", 1)
                 self.p.prnt(4, str("In Third Cycle"), 1)
-                self.p.plot([ (Sn, 'Sn', 'b', 0), (Sni, 'Sni', 'r', len(Sn)-len(Sni)), (self.data.raw[:len(Sn)]*0.3, 'raw*0.3', 'c', 0)],0)
+                self.p.plot([ (Sn, 'Sn', 'b', 0), (Sni, 'Sni', 'r', len(Sn)-len(Sni)), (self.data.raw[:len(Sn)]*1, 'raw*0.3', 'c', 0)],0)
                 prev = 3
                 since =  len(Sn)-len(Sni)*prev
                 since = 0 if since < 0 else since
@@ -139,4 +139,7 @@ class Synthesizer:
             self.pickle.save('syntesized', self.syntesized)
         
         
-#Synthesizer().run()
+#        self.p.plot([ (self.glutealPulse(10, 1), 'glutealPulse', 'b', 0)],0)
+
+        
+Synthesizer().run()

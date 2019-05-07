@@ -58,15 +58,18 @@ class PreProcessing:
                 self.p.plot([(self.data.raw, 'speech', 'c', 0),(trama, 'trama', 'r',  idx)])
                 self.p.plot([(trama, 'trama', 'c',  0)])
                 self.p.plot([(tramaAC, 'tramaAC','c', 0)])
+                self.p.plot([(tramaAC, 'tramaAC','c', 0)])
+
                 self.p.prnt(2, str(step)+"------------------ end", 1)
                 if self.pc.stop1:
                     input("   ...")
                     
         self.data.pitch = self.filterPitch(self.data.pitch)
 
+    
         if save:
             self.pickle.SaveData(self.data)
         
 
 
-#PreProcessing().run()
+PreProcessing().run()
