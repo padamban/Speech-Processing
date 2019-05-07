@@ -77,7 +77,7 @@ class Printer:
     def plotSpeech(self, raw, speech, idx):
         for i, s in enumerate(speech):
             c = 'g' if i>0 else 'r'
-            self.plot([ (raw, 'raw', 'y',  0), (s, 'speech ', c,  idx[i]) ], 1)
+            self.plot([ (raw, 'full', 'y',  0), (s, 'segment ', c,  idx[i]) ], 0)
         
     def imShow(self, I, title=''):
         size = 7

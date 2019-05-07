@@ -17,12 +17,7 @@ class Params:
     
     def __init__(self):
         self.step = 80
-        self.pfN = 146       # Fundamental frequency of human speach.
-        self.pf = self.pfN*2
-        self.speachMinMs = 150*10
-     
-#        self.pi = 20
-#        self.u = 0.95
-#        self.p = 11
-#        self.threshold = 0.4
+        self.window = 190;
+        self.p = 3; # order of the autocorelation
+
         

@@ -6,6 +6,9 @@ Created on Fri Apr 19 23:05:01 2019
 """
 
 
+# cmeneses@deetc.isel.ipl.pt
+
+
 from config import Paths, Params
 from core import AudioManager, Printer, Math
 from core import np, pd
@@ -127,7 +130,7 @@ class Preprocess:
         return speech, speechIdx
 
 
-    def processOne(self, desc):
+    def extractSpeech(self, desc):
         raw = self.readAudioFile(desc)
         energy = self.getSignalEnergy(raw)
         speech, speechIdx = self.getSpeech(raw, energy)        
@@ -149,80 +152,132 @@ class Preprocess:
                     D[r,t] = np.Inf
         return D 
     
+    
+    
+    def processSpeech(self, raw):
+        stp = self.param.step;
+        wndw = self.param.window;
+        p = self.param.p;
+
+        tramasAC = [];    
+    
+        for step, idx in enumerate(range(0,len(raw),stp)):
+            trama  = raw[idx:idx+wndw];
+
+            if len(trama)<wndw:
+                expTrama = trama;
+                for i in range(0, np.ceil((wndw/len(trama))-1).astype(int)):                    
+                    expTrama =  np.hstack([expTrama, trama])
+                expTrama = expTrama[0:wndw];
+                trama = expTrama;
+                                
+            tAC = self.m.autocorrelation(trama);
+            ptAC = tAC[:p]            
+            tramasAC = np.vstack([ptAC] if step==0 else [tramasAC, ptAC])
+            #self.p.plot([ (tAC, 'tAC', 'y',  0), (ptAC, 'ptAC', 'r',  0) ], 0);
+
+        return tramasAC
+        
+ 
+    
     def getExpandedDistanceMap(self, D):
         eD = np.zeros(np.array(D.shape)+1)+np.Inf
         eD[1:,1:] = D
         eD[0,0] = 0
         return eD
                 
-    def getRouteMap(self, D):
-        R = np.zeros(D.shape)
-        size = R.shape
-        print(size)
-        g = np.array([1,1])
-        dirs = np.array([[1, 0], [1,1], [0,1]])
-        for step in range(sum(size)-1):
-            
-            
-            print(step, "->", )
-            vals = []
+
+    def getDistanceMapOfAc(self, sR, sT):
+        R = len(sR)
+        T = len(sT)
+        D = np.zeros([R, T]);
+        for r in range(R):
+            for t in range(T):                
+                tMin = (max(r*(T/(R*2)),(r-R*0.5)*(2*T/R)) )
+                tMax = (min(r*(2*T/R),(r+R)*(T/2/R)) )
+                if not (tMin <= t and t <= tMax) : 
+                    D[r,t] = np.Inf
+                else:
+                    D[r,t] = (sum((sT[t]-sR[r])**2)**(0.5))
+        return D 
+    
+    def stepOne(self, dist, position, arround):
+        dim = arround.shape
+        if 2<sum(dim):
+            dirs = np.array([])
+            if 1<dim[0] and 1<dim[1] :
+                dirs = np.array([[1,0], [0,1], [1,1]]);
+            elif 1<dim[0]:
+                dirs = np.array([[1,0]]);
+            elif 1<dim[1]:
+                dirs = np.array([[0,1]]);    
+                
+            minDir = dirs[0];
+            minVal = arround[minDir[0], minDir[1]];
+    
             for d in dirs:
-                p = g-d
-                v = D[p[0], p[1]]
-                vals.append(v)
-                print( "    ->", d, '\t', p, '\t', v)
- 
-            minVal = np.min(vals)
-            minDir = dirs[np.argmin(vals)]
+                thisVal = arround[d[0], d[1]];
+                if thisVal <= minVal:
+                    minDir =d;
+                    minVal = thisVal;
 
-            g = g + minDir
-            R[g[0],g[1]] = 1
-
-#            if step == 0:
-            dirs[np.argmin(vals)] 
-#            g.    
+            dist = dist + minVal;
+            position = position + minDir;
             
-            print("  -> ", vals, '\t',np.argmin(vals),  '\t', dirs[np.argmin(vals)] )
-            print("  -> ", g)
-#            R[g[0],g[1]] = np.inf
-#            min([12,11,15])
-            if(size[0]-g[0]-2<0 or size[1]-g[1]-2<0):
-                break
-        return R
+        return position, dist, minVal
+    
+    
+    
+    def getDistanceRoute(self, expD):
+        target = expD.shape;
+        Route =  np.zeros(expD.shape);
+        expDRoute =  np.array(expD);
 
+        baseline = 0.5;
+        pos = np.array([0,0]);
+        dist = 0;
+        Route[pos[0], pos[1]] = baseline; 
+        step = 0;
+        
+        while ((target[0]-1)-pos[0] + (target[0]-1)-pos[0])!=0:
+            around = expD[pos[0]:pos[0]+2, pos[1]:pos[1]+2];
+            pos, dist, delta = self.stepOne(dist, pos, around);
+            step = step + 1;            
+            Route[pos[0], pos[1]] = baseline + delta; 
+            expDRoute[pos[0], pos[1]] = expDRoute[pos[0], pos[1]] +1;
+        globalDist = np.inf;
+        if 0 < step:
+            globalDist = dist / step;
+        
+        return globalDist, Route, expDRoute;
+        
+    
     def getDistance(self, sR, sT):
-#        r = len(sR)
-#        t = len(sT)
-        sR = range(0,15)
-        sT = range(15,0,-1)
+        D = self.getDistanceMapOfAc( sR, sT);
+        expD = self.getExpandedDistanceMap(D);
+        globalDist, route, expdRoute = self.getDistanceRoute(expD);
+        return globalDist, expD, route, expdRoute;
+    
+    
+    def compare(self, descA, descB): 
+        speechA = self.extractSpeech(descA)[0]
+        speechB = self.extractSpeech(descB)[0]
+        speechA_AC = self.processSpeech(speechA)
+        speechB_AC = self.processSpeech(speechB)
+        globalDistance, expD, route, expdRoute = self.getDistance( speechA_AC, speechB_AC );
+        return globalDistance, expD, route, expdRoute
+    
+    def compare1toN(self, one, many):
+        dA = self.trainingDesc[one];
 
-        D = self.getDistanceMap(sR,sT)
-        self.p.imShow(D, "Distance Map " + str(D.shape))
+        for k in many:
+            dK = self.trainingDesc[k];
+            globalDistance, expD, route, expdRoute = self.compare( dA, dK );
+            self.p.imShow(route, "route of " + str(dA[1]) + " v " + str(dK[1]) + "      dist="+str(round(globalDistance,3)))
 
-        eD = self.getExpandedDistanceMap(D)
-        
-        self.p.imShow(eD, "exp Distance Map " + str(eD.shape))
-        R = self.getRouteMap(D)
-        self.p.imShow(R, "Route Map " + str(R.shape))
-
-#        self.p.imShow(D)
-#        print( r, t)
-
-        
-        
+    
     def run(self):
-        print("Tdesc ", self.trainingDesc[0])
-
-
-        dA = self.trainingDesc[0]
-        dB = self.trainingDesc[1]
-        
-        print(" -- dA",  dA[1])
-        speechA = self.processOne(dA)[0]
-        print(" -- dB",  dB[1])
-        speechB = self.processOne(dB)[0]
-
-        self.getDistance(speechA, speechB)
+        self.compare1toN(1, [3,4,5,6,8])
 
 Preprocess().run()
         
