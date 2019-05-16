@@ -62,22 +62,23 @@ class Printer:
         if self.enable or enable:
             print(indent+text)
             
-    def plot(self, data, sep=False):
+    def plot(self, data, sep=False, title=""):
         fig, ax1 = plt.subplots()
         for i, d in enumerate(data):
             ax = ax1.twinx() if sep and i else ax1 
             span = range(d[3],d[3]+len(d[0]))  if len(d) == 4 else self.getSpan(d[0], d[4])
             ax.plot(span, d[0], d[2], label=d[1])   
         plt.legend()
+        plt.title(title)
         plt.show() 
     
     def getSpan(self, data, step):
         return np.arange(len(data))*step
     
-    def plotSpeech(self, raw, speech, idx):
+    def plotSpeech(self, raw, speech, idx, title=""):
         for i, s in enumerate(speech):
             c = 'g' if i>0 else 'r'
-            self.plot([ (raw, 'full', 'y',  0), (s, 'segment ', c,  idx[i]) ], 0)
+            self.plot([ (raw, 'audio', 'y',  0), (s, 'speech ', c,  idx[i]) ], 0, title)
         
     def imShow(self, I, title=''):
         size = 7

@@ -130,11 +130,13 @@ class Preprocess:
         return speech, speechIdx
 
 
-    def extractSpeech(self, desc):
+    def extractSpeech(self, desc, visu=False):
         raw = self.readAudioFile(desc)
         energy = self.getSignalEnergy(raw)
-        speech, speechIdx = self.getSpeech(raw, energy)        
-        self.p.plotSpeech(raw, speech, speechIdx)
+        speech, speechIdx = self.getSpeech(raw, energy) 
+        if(visu):
+            title = str( " content: " + desc[1][0]) + " | orator: " + str(desc[1][2])+ " |  version: " + str(desc[1][1])
+            self.p.plotSpeech(raw, speech, speechIdx, title)
         return speech
     
 
@@ -174,7 +176,10 @@ class Preprocess:
             tAC = self.m.autocorrelation(trama);
             ptAC = tAC[:p]            
             tramasAC = np.vstack([ptAC] if step==0 else [tramasAC, ptAC])
-            #self.p.plot([ (tAC, 'tAC', 'y',  0), (ptAC, 'ptAC', 'r',  0) ], 0);
+#            if step == 20:
+#                self.p.plot([ (tAC, 'all', 'b*-',  0), (ptAC, 'order p='+str(p), 'y',  0) ], 0, 'Autocorrelation of segment');
+#                title = str( " trama: " + str(step))
+#                self.p.plot([ (raw, 'speech', 'r',  0), (trama, 'segment ', 'b',  idx) ], 0, title)
 
         return tramasAC
         
@@ -195,7 +200,7 @@ class Preprocess:
             for t in range(T):                
                 tMin = (max(r*(T/(R*2)),(r-R*0.5)*(2*T/R)) )
                 tMax = (min(r*(2*T/R),(r+R)*(T/2/R)) )
-                if not (tMin <= t and t <= tMax) : 
+                if not (tMin <= t+1 and t-1 <= tMax) : 
                     D[r,t] = np.Inf
                 else:
                     D[r,t] = (sum((sT[t]-sR[r])**2)**(0.5))
@@ -244,7 +249,7 @@ class Preprocess:
             pos, dist, delta = self.stepOne(dist, pos, around);
             step = step + 1;            
             Route[pos[0], pos[1]] = baseline + delta; 
-            expDRoute[pos[0], pos[1]] = expDRoute[pos[0], pos[1]] +1;
+            expDRoute[pos[0], pos[1]] = expDRoute[pos[0], pos[1]] +3;
         globalDist = np.inf;
         if 0 < step:
             globalDist = dist / step;
@@ -259,25 +264,148 @@ class Preprocess:
         return globalDist, expD, route, expdRoute;
     
     
-    def compare(self, descA, descB): 
-        speechA = self.extractSpeech(descA)[0]
-        speechB = self.extractSpeech(descB)[0]
-        speechA_AC = self.processSpeech(speechA)
-        speechB_AC = self.processSpeech(speechB)
+    
+    
+    def processAll(self, descs):
+        ACs = [] 
+        for d in descs:
+            speech = self.extractSpeech(d, False)[0]
+            speechAC = self.processSpeech(speech)
+            ACs.append(speechAC)
+        return ACs
+        
+    def compareAC(self, speechA_AC, speechB_AC):
         globalDistance, expD, route, expdRoute = self.getDistance( speechA_AC, speechB_AC );
         return globalDistance, expD, route, expdRoute
     
-    def compare1toN(self, one, many):
-        dA = self.trainingDesc[one];
+    def compare(self, descA, descB, visu=False, speechAlreadyProcessed=False): 
+        speechA = self.extractSpeech(descA, visu)[0]
+        speechB = self.extractSpeech(descB, visu)[0]           
+        speechA_AC = self.processSpeech(speechA)
+        speechB_AC = self.processSpeech(speechB)
+        globalDistance, expD, route, expdRoute = self.compareAC( speechA_AC, speechB_AC );
+        return globalDistance, expD, route, expdRoute
+    
+    def compare1toN(self, one, many, visu=False):
+        dA = one;
+        for dK in many:
+            globalDistance, expD, route, expdRoute = self.compare( dA, dK, visu);
+            if(visu):
+                self.p.imShow(expD, "expD of " + str(dA[1]) + " v " + str(dK[1]) + "      dist="+str(round(globalDistance,3)))
 
-        for k in many:
-            dK = self.trainingDesc[k];
-            globalDistance, expD, route, expdRoute = self.compare( dA, dK );
-            self.p.imShow(route, "route of " + str(dA[1]) + " v " + str(dK[1]) + "      dist="+str(round(globalDistance,3)))
+                self.p.imShow(expdRoute, "expdRoute of " + str(dA[1]) + " v " + str(dK[1]) + "      dist="+str(round(globalDistance,3)))
+
+                self.p.imShow(route, "route of " + str(dA[1]) + " v " + str(dK[1]) + "      dist="+str(round(globalDistance,3)))
+
+      
+    def compareTestToTrain(self, test, train, visu=False):
+
+        testACs = self.processAll(test)
+        trainACs =  self.processAll(train)
+        
+        rows = len(test)
+        cols = len(train)
+        scoreMap = np.zeros([rows, cols])
+        matchMap = np.zeros([rows, cols])
+        matchScoreMap = np.zeros([rows*3, cols])-np.inf
+
+#        print("compareTestToTrain 1 - ", testACs)
+        
+        matchCount = 0;
+        testCount = 0;
+
+
+        print("compareTestToTrain  - ", len(test[0]), len(train[0]))
+        for i, iTest in enumerate(test):
+            iexp = i*3
+            
+            iTestAC = testACs[i]
+            scores = []
+            for j, jTrain in enumerate(train):
+                jTrainAC = trainACs[j]
+                globalDistance, expD, route, expdRoute = self.compareAC(iTestAC, jTrainAC)            
+                
+                scoreMap[i,j] = globalDistance
+                matchScoreMap[iexp,j] = globalDistance
+                
+                scores.append(globalDistance);
+                isSame = iTest[1][0] == jTrain[1][0];
+                matchScoreMap[iexp+1,j] = 1 if isSame else np.inf
+                
+                
+#                print("   -> ", i, j, "   -  ", iTest[1][0]," v ", jTrain[1][0], "  \t",round(globalDistance, 3) )
+
+            lowestScoreIdx = np.argmin(scores);
+            
+            isMatch = iTest[1][0] == train[lowestScoreIdx][1][0];
+            
+            matchCount = matchCount + (1 if isMatch else 0);
+            testCount = testCount + 1;
+
+            
+            print("   -> ", i, lowestScoreIdx, "   -  ", iTest[1][0]," v ", train[lowestScoreIdx][1][0], "  \t",round( scores[lowestScoreIdx], 3), "  \t", isMatch )
+
+            matchMap[i,lowestScoreIdx] = 1 * (1 if isMatch else -1);
+            matchScoreMap[iexp+1,lowestScoreIdx] = 1 * (2 if isMatch else -0.5);
+            
+        matchRatio = (matchCount / testCount) if testCount != 0 else 0
+            
+        self.p.imShow(scoreMap, "scoreMap ")
+
+        self.p.imShow(matchMap, "matchMap ")
+        self.p.imShow(matchScoreMap, "matchScoreMap ")
+        print(" matchRatio " , matchRatio,"    ", matchCount,  testCount)
+
+
+    def compareAll(self, data):
+                
+        numOfSamples = len(data)
+        
+        confusionMap = np.ones([numOfSamples, numOfSamples])
+#        matchMap = np.ones([numOfSamples, numOfSamples])
+        matchMap = np.zeros([numOfSamples, numOfSamples])
+
+        xMap = np.zeros([numOfSamples, numOfSamples])
+
+
+
+        ACs = self.processAll(data)
+
+        
+        for i, di in enumerate(data):
+            iAC = ACs[i]
+            iValue = di[1][0]
+            
+            
+            for j, dj in enumerate(data):
+                if i > j-1:
+                    jValue = dj[1][0]
+                    jAC = ACs[j]
+                    globalDistance, expD, route, expdRoute = self.compareAC(iAC, jAC)            
+                    confusionMap[i,j] = globalDistance
+                    confusionMap[j,i] = globalDistance
+                    matchMap[i,j] = (jValue == iValue) and (globalDistance < 0.8)
+                    xMap[i,j] = (globalDistance < 0.5)
+                    print("   -> ", i, j, "   -  ", di[1][0]," v ", dj[1][0], "  \t",round(globalDistance, 3) )
+
+
+
+        self.p.imShow(confusionMap, "confusionMap ")
+        self.p.imShow(matchMap, "matchMap ")
+        self.p.imShow(xMap, "xMap ")
+        
+
 
     
     def run(self):
-        self.compare1toN(1, [3,4,5,6,8])
+#        self.compare1toN(self.testingDesc[21], [self.trainingDesc[30]], True)
+#        self.compare1toN(self.trainingDesc[1], [self.trainingDesc[0]], True)
+
+#        self.compareAll(self.trainingDesc[:40])
+        self.compareTestToTrain(self.testingDesc[:], self.trainingDesc[:])
+
+        
+ 
 
 Preprocess().run()
         

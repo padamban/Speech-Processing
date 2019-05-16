@@ -17,7 +17,7 @@ class Params:
     
     def __init__(self):
         self.step = 80
-        self.window = 190;
-        self.p = 3; # order of the autocorelation
+        self.window = 160;
+        self.p = 15; # order of the autocorelation
 
         
